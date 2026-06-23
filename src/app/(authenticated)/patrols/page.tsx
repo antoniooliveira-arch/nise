@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 interface School {
   id: number;
@@ -52,6 +52,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   em_andamento: { label: "Em Andamento", color: "bg-amber-100 text-amber-700" },
   concluida: { label: "Concluída", color: "bg-blue-100 text-blue-700" },
   validada: { label: "Validada", color: "bg-emerald-100 text-emerald-700" },
+  em_atendimento: { label: "Em Atendimento", color: "bg-purple-100 text-purple-700" },
 };
 
 export default function PatrolsPage() {
@@ -71,6 +72,8 @@ export default function PatrolsPage() {
   const [otherDescription, setOtherDescription] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [audioText, setAudioText] = useState("");
+  const [interimText, setInterimText] = useState("");
+  const finalTranscriptRef = useRef("");
 
   const fetchData = useCallback(async () => {
     try {
@@ -129,13 +132,23 @@ export default function PatrolsPage() {
       recognition.continuous = true;
       recognition.interimResults = true;
 
+      finalTranscriptRef.current = "";
+      setAudioText("");
+      setInterimText("");
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
-        let transcript = "";
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscriptRef.current += result[0].transcript;
+          } else {
+            interim += result[0].transcript;
+          }
         }
-        setAudioText(transcript);
+        setAudioText(finalTranscriptRef.current);
+        setInterimText(interim);
       };
 
       recognition.onerror = () => {
@@ -223,6 +236,8 @@ export default function PatrolsPage() {
     setChecklist([]);
     setOtherDescription("");
     setAudioText("");
+    setInterimText("");
+    finalTranscriptRef.current = "";
   };
 
   if (loading) {
@@ -372,11 +387,29 @@ export default function PatrolsPage() {
                 </span>
               )}
             </div>
-            {audioText && (
-              <div className="p-3 bg-gray-50 rounded-xl text-sm text-gray-700 border border-gray-200">
-                <p className="text-xs text-gray-400 mb-1">Transcrição:</p>
-                {audioText}
-              </div>
+            <textarea
+              value={audioText + (interimText ? (audioText ? " " : "") + interimText + "|" : "")}
+              onChange={(e) => {
+                if (!isRecording) {
+                  setAudioText(e.target.value);
+                  finalTranscriptRef.current = e.target.value;
+                }
+              }}
+              rows={4}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
+              placeholder={isRecording ? "Aguardando áudio..." : "Transcrição aparecerá aqui..."}
+              readOnly={isRecording}
+            />
+            {isRecording && (
+              <p className="text-xs text-red-500 mt-1 animate-pulse flex items-center gap-1">
+                <span className="w-2 h-2 bg-red-500 rounded-full inline-block" />
+                Gravando... fale normalmente
+              </p>
+            )}
+            {!isRecording && audioText && (
+              <p className="text-xs text-gray-400 mt-1">
+                {audioText.length} caracteres transcritos. Você pode editar o texto acima.
+              </p>
             )}
           </div>
 
@@ -425,6 +458,7 @@ export default function PatrolsPage() {
           <option value="em_andamento">Em Andamento</option>
           <option value="concluida">Concluída</option>
           <option value="validada">Validada</option>
+          <option value="em_atendimento">Em Atendimento</option>
         </select>
       </div>
 
@@ -526,14 +560,30 @@ export default function PatrolsPage() {
                         Finalizar
                       </button>
                     )}
-                  {patrol.status === "concluida" && user?.role === "administrador" && (
-                    <button
-                      onClick={() => handleValidatePatrol(patrol.id)}
-                      className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-100 transition-colors"
-                    >
-                      Validar
-                    </button>
-                  )}
+                  {(patrol.status === "concluida" || patrol.status === "em_atendimento") &&
+                    user?.role === "administrador" && (
+                      <>
+                        <button
+                          onClick={() => handleValidatePatrol(patrol.id)}
+                          className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-100 transition-colors"
+                        >
+                          Validar
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const res = await fetch(`/api/patrols/${patrol.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "attending" }),
+                            });
+                            if (res.ok) fetchPatrols();
+                          }}
+                          className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg hover:bg-purple-100 transition-colors"
+                        >
+                          Em Atendimento
+                        </button>
+                      </>
+                    )}
                 </div>
               </div>
             </div>

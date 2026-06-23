@@ -39,6 +39,7 @@ const STATUS_LABELS: Record<string, string> = {
   em_andamento: "Em Andamento",
   concluida: "Concluída",
   validada: "Validada",
+  em_atendimento: "Em Atendimento",
 };
 
 export default function ReportsPage() {
@@ -119,13 +120,15 @@ export default function ReportsPage() {
         em_andamento: reports.filter((r) => r.status === "em_andamento").length,
         concluida: reports.filter((r) => r.status === "concluida").length,
         validada: reports.filter((r) => r.status === "validada").length,
+        em_atendimento: reports.filter((r) => r.status === "em_atendimento").length,
       };
 
       doc.setFontSize(10);
       doc.text(`Total de patrulhas: ${reports.length}`, 14, 60);
       doc.text(`Em andamento: ${statusCounts.em_andamento}`, 14, 66);
       doc.text(`Concluídas: ${statusCounts.concluida}`, 14, 72);
-      doc.text(`Validadas: ${statusCounts.validada}`, 14, 78);
+      doc.text(`Em Atendimento: ${statusCounts.em_atendimento}`, 14, 78);
+      doc.text(`Validadas: ${statusCounts.validada}`, 14, 84);
 
       // Table
       const tableData = reports.map((r) => [
@@ -138,7 +141,7 @@ export default function ReportsPage() {
       ]);
 
       autoTable(doc, {
-        startY: 86,
+        startY: 92,
         head: [["Data", "Escola", "Técnico", "Status", "Ocorrências", "Observações"]],
         body: tableData,
         styles: { fontSize: 8, cellPadding: 3 },
@@ -252,6 +255,7 @@ export default function ReportsPage() {
             <option value="em_andamento">Em Andamento</option>
             <option value="concluida">Concluída</option>
             <option value="validada">Validada</option>
+            <option value="em_atendimento">Em Atendimento</option>
           </select>
           <input
             type="date"
@@ -271,7 +275,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <p className="text-2xl font-bold text-gray-900">{reports.length}</p>
           <p className="text-xs text-gray-500">Total</p>
@@ -287,6 +291,12 @@ export default function ReportsPage() {
             {reports.filter((r) => r.status === "concluida").length}
           </p>
           <p className="text-xs text-gray-500">Concluídas</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <p className="text-2xl font-bold text-purple-600">
+            {reports.filter((r) => r.status === "em_atendimento").length}
+          </p>
+          <p className="text-xs text-gray-500">Em Atendimento</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <p className="text-2xl font-bold text-emerald-600">
@@ -345,6 +355,8 @@ export default function ReportsPage() {
                             ? "bg-emerald-100 text-emerald-700"
                             : report.status === "concluida"
                             ? "bg-blue-100 text-blue-700"
+                            : report.status === "em_atendimento"
+                            ? "bg-purple-100 text-purple-700"
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
@@ -399,6 +411,8 @@ export default function ReportsPage() {
                       ? "bg-emerald-100 text-emerald-700"
                       : report.status === "concluida"
                       ? "bg-blue-100 text-blue-700"
+                      : report.status === "em_atendimento"
+                      ? "bg-purple-100 text-purple-700"
                       : "bg-amber-100 text-amber-700"
                   }`}
                 >

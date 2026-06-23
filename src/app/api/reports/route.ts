@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   if (status) {
     conditions.push(
-      eq(patrols.status, status as "em_andamento" | "concluida" | "validada")
+      eq(patrols.status, status as "em_andamento" | "concluida" | "validada" | "em_atendimento")
     );
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 interface School {
   id: number;
@@ -60,6 +60,8 @@ export default function PresencePage() {
   const [otherDescription, setOtherDescription] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [audioText, setAudioText] = useState("");
+  const [interimText, setInterimText] = useState("");
+  const finalTranscriptRef = useRef("");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -132,17 +134,29 @@ export default function PresencePage() {
         alert("Seu navegador não suporta reconhecimento de voz.");
         return;
       }
-      const recognition = new (SR as new () => { lang: string; continuous: boolean; interimResults: boolean; onresult: (event: { results: Array<Array<{ transcript: string }>> }) => void; onerror: () => void; onend: () => void; start: () => void; stop: () => void })();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const recognition = new (SR as any)();
       recognition.lang = "pt-BR";
       recognition.continuous = true;
       recognition.interimResults = true;
 
-      recognition.onresult = (event) => {
-        let transcript = "";
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+      finalTranscriptRef.current = "";
+      setAudioText("");
+      setInterimText("");
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalTranscriptRef.current += result[0].transcript;
+          } else {
+            interim += result[0].transcript;
+          }
         }
-        setAudioText(transcript);
+        setAudioText(finalTranscriptRef.current);
+        setInterimText(interim);
       };
 
       recognition.onerror = () => {
@@ -222,6 +236,8 @@ export default function PresencePage() {
     setChecklist([]);
     setOtherDescription("");
     setAudioText("");
+    setInterimText("");
+    finalTranscriptRef.current = "";
     setIsRecording(false);
     setShowPatrolForm(false);
   };
@@ -573,13 +589,29 @@ export default function PresencePage() {
                     </span>
                   )}
                 </div>
-                {audioText && (
-                  <div className="p-3 bg-blue-50 rounded-xl text-sm text-blue-800 border border-blue-200">
-                    <p className="text-xs text-blue-500 mb-1 font-medium">
-                      Transcrição do áudio:
-                    </p>
-                    {audioText}
-                  </div>
+                <textarea
+                  value={audioText + (interimText ? (audioText ? " " : "") + interimText + "|" : "")}
+                  onChange={(e) => {
+                    if (!isRecording) {
+                      setAudioText(e.target.value);
+                      finalTranscriptRef.current = e.target.value;
+                    }
+                  }}
+                  rows={4}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
+                  placeholder={isRecording ? "Aguardando áudio..." : "Transcrição aparecerá aqui..."}
+                  readOnly={isRecording}
+                />
+                {isRecording && (
+                  <p className="text-xs text-red-500 mt-1 animate-pulse flex items-center gap-1">
+                    <span className="w-2 h-2 bg-red-500 rounded-full inline-block" />
+                    Gravando... fale normalmente
+                  </p>
+                )}
+                {!isRecording && audioText && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {audioText.length} caracteres transcritos. Você pode editar o texto acima.
+                  </p>
                 )}
               </div>
 

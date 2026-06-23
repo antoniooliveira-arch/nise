@@ -21,6 +21,7 @@ export const patrolStatusEnum = pgEnum("patrol_status", [
   "em_andamento",
   "concluida",
   "validada",
+  "em_atendimento",
 ]);
 
 export const presenceTypeEnum = pgEnum("presence_type", [

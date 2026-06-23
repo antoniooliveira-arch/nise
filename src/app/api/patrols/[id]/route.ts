@@ -53,5 +53,24 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
+  if (action === "attending") {
+    if (user.role !== "administrador") {
+      return NextResponse.json(
+        { error: "Apenas administradores podem marcar patrulhas como em atendimento" },
+        { status: 403 }
+      );
+    }
+    const [updated] = await db
+      .update(patrols)
+      .set({
+        status: "em_atendimento",
+        validatedBy: user.id,
+        validatedAt: new Date(),
+      })
+      .where(eq(patrols.id, patrolId))
+      .returning();
+    return NextResponse.json(updated);
+  }
+
   return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
 }
